@@ -104,14 +104,22 @@
             const selectors = document.getElementById("instant-selectors").value.split(",").map(s => s.trim());
             if(!urls.length) return alert("لیست آدرس‌ها خالی است");
 
-            await fetch('/api/v1/scrape/batch?domain=instant-env', {
+            // اصلاح فرستادن پpayload به صورت بادی استاندارد JSON
+            const res = await fetch('/api/v1/scrape/batch', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(urls)
+                body: JSON.stringify({
+                    urls: urls,
+                    selectors: selectors,
+                    domain: "instant-env"
+                })
             });
-            // ما دیتای سلکتورها را همزمان در کوئری یا بادی با ساختار اصلاح شده می‌فرستیم
-            // برای سادگی در این نسخه، به روت /api/v1/scrape/batch متصل شده است
-            alert("جاب با موفقیت تزریق شد. وضعیت را در رصدخانه ببینید.");
+
+            if(res.ok) {
+                alert("جاب آنی با موفقیت تزریق شد. رصدخانه را بررسی کنید.");
+            } else {
+                alert("خطا در ارسال درخواست به بک‌آند.");
+            }
         }
 
         async function submitCronJob() {
