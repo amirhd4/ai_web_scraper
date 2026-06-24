@@ -1,31 +1,27 @@
-# main.py
-from fastapi import FastAPI, BackgroundTasks, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-import asyncio
+from fastapi import FastAPI, BackgroundTasks, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 import uuid
 import httpx
-from schemas import ScrapingTask
+import asyncio
+from schemas import ScrapingTask, CronJobCreate
 from worker import AsyncScraperEngine
 from storage import storage
+from scheduler import start_cron_scheduler, add_scraping_cron, remove_scraping_cron
 import json
 
-app = FastAPI(title="Enterprise Distributed Scraper Control Plane")
+app = FastAPI(title="Enterprise UI & Scheduled Scraper")
 
-# فعال‌سازی CORS برای اتصال راحت فرانت‌اند یا داشبورد مدیریت
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-scraper_engine = AsyncScraperEngine()
+# استارت زمان‌بند در هنگام بالا آمدن اپلیکیشن
+@app.on_event("startup")
+async def startup_event():
+    start_cron_scheduler()
 
-# مدیریت کانکشن‌های وب‌ساکت برای مانیتورینگ زنده
+
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: list[WebSocket] = []
+        self.active_connections = []
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
@@ -38,64 +34,81 @@ class ConnectionManager:
         for connection in self.active_connections:
             try:
                 await connection.send_text(json.dumps(message))
-            except Exception:
+            except:
                 pass
 
-manager = ConnectionManager()
 
-async def run_cluster_scraping(task_id: str, urls: list[str], domain: str):
-    """مدیریت و اجرای دسته‌ای تسک‌ها به صورت کاملاً غیرهمزمان"""
+manager = ConnectionManager()
+scraper_engine = AsyncScraperEngine()
+
+
+async def run_cluster_scraping(task_id: str, urls: list[str], selectors: list[str], domain: str):
     async with httpx.AsyncClient() as client:
-        jobs = []
-        for index, url in enumerate(urls):
-            task = ScrapingTask(task_id=task_id, url=url, target_domain=domain)
-            jobs.append(scraper_engine.fetch_and_parse(task, client))
-            
-        # اجرای موازی تمام درخواست‌ها با رعایت ریت‌لیمیت داخلی ورکر
+        jobs = [scraper_engine.fetch_and_parse(
+            ScrapingTask(task_id=task_id, url=url, target_domain=domain, css_selectors=selectors), client
+        ) for url in urls]
         for future in asyncio.as_completed(jobs):
             result = await future
             if result:
-                # ارسال سیگنال زنده به داشبورد مدیریتی وب‌ساکت
                 await manager.broadcast({
-                    "event": "page_scraped",
-                    "task_id": task_id,
-                    "url": result.url,
-                    "status": "success",
-                    "title": result.title
+                    "event": "page_scraped", "task_id": task_id, "url": result.url,
+                    "status_code": result.status_code, "data": result.extracted_data, "is_cron": False
                 })
 
-@app.post("/api/v1/scrape/batch")
-async def start_batch_scrape(urls: list[str], domain: str, background_tasks: BackgroundTasks):
-    """نقطه ورود جاب‌های بزرگ - دریافت لیست کلاینت و سپردن به پس‌زمینه بیدرنگ"""
-    task_id = str(uuid.uuid4())
-    
-    # سپردن کار به Background Tasks جهت آزاد شدن فوری ترافیک API کلاینت
-    background_tasks.add_task(run_cluster_scraping, task_id, urls, domain)
-    
-    return {
-        "status": "queued",
-        "task_id": task_id,
-        "total_urls": len(urls),
-        "message": "Scraping cluster initialized in background."
-    }
 
-@app.get("/api/v1/scrape/results/{task_id}")
-async def get_task_results(task_id: str):
-    """دریافت دیتای جمع‌آوری شده یک جاب خاص"""
-    data = storage.get_results(task_id)
-    return {"task_id": task_id, "count": len(data), "results": data}
+@app.post("/api/v1/scrape/batch")
+async def start_batch_scrape(urls: list[str], selectors: list[str], domain: str, background_tasks: BackgroundTasks):
+    task_id = str(uuid.uuid4())[:8]
+    background_tasks.add_task(run_cluster_scraping, task_id, urls, selectors, domain)
+    return {"status": "queued", "task_id": task_id}
+
+
+# APIهای جدید برای مدیریت کرون‌جاب‌ها
+@app.post("/api/v1/cron")
+async def create_cron_task(payload: CronJobCreate):
+    job_id = f"cron-job-{str(uuid.uuid4())[:6]}"
+    urls_str = [str(u) for u in payload.urls]
+
+    # ثبت در زمان‌بند کور پایتون
+    try:
+        add_scraping_cron(job_id, urls_str, payload.selectors, payload.domain, payload.cron_expression,
+                          manager.broadcast)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid Cron Expression: {str(e)}")
+
+    # ثبت در دیتابیس جهت نمایش در فرانت هند
+    storage.save_cron_job(job_id, {
+        "job_id": job_id, "urls": urls_str, "selectors": payload.selectors,
+        "domain": payload.domain, "cron": payload.cron_expression
+    })
+    return {"status": "cron_scheduled", "job_id": job_id}
+
+
+@app.get("/api/v1/cron")
+async def list_cron_tasks():
+    return storage.get_all_cron_jobs()
+
+
+@app.delete("/api/v1/cron/{job_id}")
+async def delete_cron_task(job_id: str):
+    remove_scraping_cron(job_id)
+    storage.delete_cron_job(job_id)
+    return {"status": "deleted", "job_id": job_id}
+
 
 @app.websocket("/ws/monitor")
 async def websocket_endpoint(websocket: WebSocket):
-    """اتصال وب‌ساکت برای رصد لحظه‌ای عملکرد سیستم و مانیتورینگ ورکرها"""
     await manager.connect(websocket)
     try:
-        while True:
-            # منتظر ماندن برای زنده نگه داشتن کانکشن
-            await websocket.receive_text()
+        while True: await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+
+# ماب کردن فرانت‌اند مستقل به بک‌آند
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/")
+async def root_redirect():
+    return RedirectResponse(url="/static/index.html")

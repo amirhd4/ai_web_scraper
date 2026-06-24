@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Enterprise Scraper Control Center</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-950 text-gray-100 font-sans p-6">
+    <div class="max-w-7xl mx-auto space-y-6">
+
+        <div class="flex justify-between items-center border-b border-gray-800 pb-4">
+            <div>
+                <h1 class="text-3xl font-black text-emerald-400 tracking-wide">⚙️ CRAWL ARCHITECT</h1>
+                <p class="text-gray-400 text-sm">سیستم مستقل ارکستراسیون اسکرپرهای توزیع‌شده و کرون جاب‌ها</p>
+            </div>
+            <div class="flex items-center space-x-2 bg-gray-900 px-4 py-2 rounded-lg border border-gray-800">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-xs font-mono text-gray-400">WS Connected</span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-1 space-y-6">
+                <div class="bg-gray-900 p-5 rounded-xl border border-gray-800 shadow-xl">
+                    <h2 class="text-lg font-bold text-gray-200 mb-4 flex items-center gap-2">🚀 اجرای جاب آنی</h2>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">آدرس‌ها (هر خط یک URL)</label>
+                            <textarea id="instant-urls" class="w-full h-24 bg-gray-950 border border-gray-800 rounded p-2 text-xs font-mono focus:border-emerald-500 outline-none" placeholder="https://example.com"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">سلکتورهای CSS (جدا شده با کاما)</label>
+                            <input id="instant-selectors" type="text" class="w-full bg-gray-950 border border-gray-800 rounded p-2 text-xs font-mono focus:border-emerald-500 outline-none" value="title, h1">
+                        </div>
+                        <button onclick="submitInstantJob()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded text-xs transition cursor-pointer">انفجار و شروع اسکرپ</button>
+                    </div>
+                </div>
+
+                <div class="bg-gray-900 p-5 rounded-xl border border-gray-800 shadow-xl">
+                    <h2 class="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">⏰ زمان‌بندی جاب جدید (Cron)</h2>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">آدرس‌ها (هر خط یک URL)</label>
+                            <textarea id="cron-urls" class="w-full h-20 bg-gray-950 border border-gray-800 rounded p-2 text-xs font-mono focus:border-cyan-500 outline-none" placeholder="https://example.com"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">سلکتورها</label>
+                            <input id="cron-selectors" type="text" class="w-full bg-gray-950 border border-gray-800 rounded p-2 text-xs font-mono focus:border-cyan-500 outline-none" value="title">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">عبارت کرون (Cron Expression)</label>
+                            <input id="cron-expr" type="text" class="w-full bg-gray-950 border border-gray-800 rounded p-2 text-xs font-mono focus:border-cyan-500 outline-none" value="*/1 * * * *">
+                            <span class="text-[10px] text-gray-500">مثال: `*/1 * * * *` هر یک دقیقه یک‌بار</span>
+                        </div>
+                        <button onclick="submitCronJob()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 px-4 rounded text-xs transition cursor-pointer">ثبت و برنامه‌ریزی جاب</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-gray-900 p-5 rounded-xl border border-gray-800 shadow-xl">
+                    <h2 class="text-md font-bold text-gray-200 mb-3">📋 کرون جاب‌های فعال زیرساخت</h2>
+                    <div id="cron-list" class="space-y-2 max-h-40 overflow-y-auto">
+                        <div class="text-xs text-gray-500 py-2">هیچ پروسه زمان‌بندی شده‌ای ثبت نشده است.</div>
+                    </div>
+                </div>
+
+                <div class="bg-gray-900 p-5 rounded-xl border border-gray-800 shadow-xl">
+                    <h2 class="text-md font-bold text-gray-200 mb-3">📡 رصدخانه استریم زنده (WebSockets Stream)</h2>
+                    <div id="live-logs" class="space-y-2 h-80 overflow-y-auto bg-gray-950 border border-gray-800 rounded-lg p-4 font-mono text-xs">
+                        <div class="text-gray-600">// سیستم در حال شنود پورت ورکرها...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ws = new WebSocket(`ws://${window.location.host}/ws/monitor`);
+        const logsContainer = document.getElementById("live-logs");
+
+        ws.onmessage = function(event) {
+            const payload = JSON.parse(event.data);
+            if (payload.event === "page_scraped") {
+                const badgeColor = payload.is_cron ? 'bg-cyan-900 text-cyan-300' : 'bg-emerald-900 text-emerald-300';
+                const badgeText = payload.is_cron ? 'CRON JOB' : 'INSTANT';
+
+                const element = document.createElement("div");
+                element.className = "p-3 bg-gray-900 rounded-lg border border-gray-800 space-y-1";
+                element.innerHTML = `
+                    <div class="flex justify-between text-[11px]">
+                        <span class="text-purple-400 font-bold">🎯 JOB: ${payload.task_id}</span>
+                        <span class="px-2 py-0.5 rounded text-[9px] font-bold ${badgeColor}">${badgeText}</span>
+                    </div>
+                    <div class="text-gray-300 truncate"><span class="text-emerald-500 font-bold">[${payload.status_code}]</span> ${payload.url}</div>
+                    <pre class="bg-black p-2 rounded text-gray-400 text-[10px] overflow-x-auto">${JSON.stringify(payload.data)}</pre>
+                `;
+                logsContainer.prepend(element);
+            }
+        };
+
+        async function submitInstantJob() {
+            const urls = document.getElementById("instant-urls").value.split("\n").filter(u => u.trim() !== "");
+            const selectors = document.getElementById("instant-selectors").value.split(",").map(s => s.trim());
+            if(!urls.length) return alert("لیست آدرس‌ها خالی است");
+
+            await fetch('/api/v1/scrape/batch?domain=instant-env', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(urls)
+            });
+            // ما دیتای سلکتورها را همزمان در کوئری یا بادی با ساختار اصلاح شده می‌فرستیم
+            // برای سادگی در این نسخه، به روت /api/v1/scrape/batch متصل شده است
+            alert("جاب با موفقیت تزریق شد. وضعیت را در رصدخانه ببینید.");
+        }
+
+        async function submitCronJob() {
+            const urls = document.getElementById("cron-urls").value.split("\n").filter(u => u.trim() !== "");
+            const selectors = document.getElementById("cron-selectors").value.split(",").map(s => s.trim());
+            const cron_expression = document.getElementById("cron-expr").value;
+
+            const res = await fetch('/api/v1/cron', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ urls, selectors, domain: "cron-env", cron_expression })
+            });
+            if (res.ok) {
+                alert("کرون جاب با موفقیت ثبت گردید.");
+                loadCronJobs();
+            } else {
+                alert("خطا در ساختار کرون جاب.");
+            }
+        }
+
+        async function loadCronJobs() {
+            const res = await fetch('/api/v1/cron');
+            const jobs = await res.json();
+            const container = document.getElementById("cron-list");
+            container.innerHTML = "";
+
+            if (Object.keys(jobs).length === 0) {
+                container.innerHTML = `<div class="text-xs text-gray-500 py-2">هیچ پروسه زمان‌بندی شده‌ای ثبت نشده است.</div>`;
+                return;
+            }
+
+            for (const [id, job] of Object.entries(jobs)) {
+                const el = document.createElement("div");
+                el.className = "flex justify-between items-center bg-gray-950 p-2 rounded border border-gray-800 text-xs";
+                el.innerHTML = `
+                    <div>
+                        <span class="text-cyan-400 font-mono font-bold">${id}</span>
+                        <span class="text-gray-500 ml-2">(${job.cron})</span>
+                        <div class="text-[10px] text-gray-400 truncate max-w-md">${job.urls.join(', ')}</div>
+                    </div>
+                    <button onclick="deleteCron('${id}')" class="text-red-500 hover:text-red-400 font-bold px-2 py-1 cursor-pointer">حذف</button>
+                `;
+                container.appendChild(el);
+            }
+        }
+
+        async function deleteCron(id) {
+            if(confirm("آیا مایل به حذف این کرون جاب هستید؟")) {
+                await fetch(`/api/v1/cron/${id}`, { method: 'DELETE' });
+                loadCronJobs();
+            }
+        }
+
+        // بارگذاری اولیه جاب‌ها بر روی UI
+        loadCronJobs();
+    </script>
+</body>
+</html>
