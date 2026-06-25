@@ -29,7 +29,7 @@ class AsyncScraperEngine:
             "based on the user's prompt. You MUST return a valid JSON object representing the extracted data."
         )
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
 
         payload = {
             "contents": [{"parts": [{"text": f"User Request: {user_prompt}\n\nWeb Page Content:\n{page_text}"}]}],
