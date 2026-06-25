@@ -1,18 +1,15 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, BackgroundTasks, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
+from contextlib import asynccontextmanager
 import uuid
 import httpx
 import asyncio
+import json
 from schemas import ScrapingTask, CronJobCreate, InstantJobCreate
 from worker import AsyncScraperEngine
 from storage import storage
 from scheduler import start_cron_scheduler, add_scraping_cron, remove_scraping_cron
-import json
-
-app = FastAPI(title="Enterprise UI & Scheduled Scraper")
 
 
 @asynccontextmanager
@@ -20,7 +17,7 @@ async def lifespan(app: FastAPI):
     start_cron_scheduler()
     yield
 
-    pass
+app = FastAPI(title="Enterprise Control Center", lifespan=lifespan)
 
 
 class ConnectionManager:
@@ -47,7 +44,7 @@ scraper_engine = AsyncScraperEngine()
 
 
 async def run_cluster_scraping(task_id: str, urls: list[str], selectors: list[str], domain: str):
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(follow_redirects=True, verify=False) as client:
         jobs = [scraper_engine.fetch_and_parse(
             ScrapingTask(task_id=task_id, url=url, target_domain=domain, css_selectors=selectors), client
         ) for url in urls]
@@ -56,7 +53,8 @@ async def run_cluster_scraping(task_id: str, urls: list[str], selectors: list[st
             if result:
                 await manager.broadcast({
                     "event": "page_scraped", "task_id": task_id, "url": result.url,
-                    "status_code": result.status_code, "data": result.extracted_data, "is_cron": False
+                    "status_code": result.status_code, "data": result.extracted_data,
+                    "error": result.error, "is_cron": False
                 })
 
 
@@ -64,30 +62,20 @@ async def run_cluster_scraping(task_id: str, urls: list[str], selectors: list[st
 async def start_batch_scrape(payload: InstantJobCreate, background_tasks: BackgroundTasks):
     task_id = str(uuid.uuid4())[:8]
     urls_str = [str(u) for u in payload.urls]
-
     background_tasks.add_task(run_cluster_scraping, task_id, urls_str, payload.selectors, payload.domain)
-
-    return {
-        "status": "queued",
-        "task_id": task_id,
-        "message": "Scraping cluster initialized successfully."
-    }
+    return {"status": "queued", "task_id": task_id}
 
 
-# APIهای جدید برای مدیریت کرون‌جاب‌ها
 @app.post("/api/v1/cron")
 async def create_cron_task(payload: CronJobCreate):
     job_id = f"cron-job-{str(uuid.uuid4())[:6]}"
     urls_str = [str(u) for u in payload.urls]
-
-    # ثبت در زمان‌بند کور پایتون
     try:
         add_scraping_cron(job_id, urls_str, payload.selectors, payload.domain, payload.cron_expression,
                           manager.broadcast)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid Cron Expression: {str(e)}")
 
-    # ثبت در دیتابیس جهت نمایش در فرانت هند
     storage.save_cron_job(job_id, {
         "job_id": job_id, "urls": urls_str, "selectors": payload.selectors,
         "domain": payload.domain, "cron": payload.cron_expression
@@ -116,7 +104,6 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 
-# ماب کردن فرانت‌اند مستقل به بک‌آند
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
@@ -127,4 +114,5 @@ async def root_redirect():
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

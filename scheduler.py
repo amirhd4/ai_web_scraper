@@ -1,7 +1,6 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from worker import AsyncScraperEngine
-from storage import storage
 import httpx
 import asyncio
 import uuid
@@ -11,13 +10,13 @@ scraper_engine = AsyncScraperEngine()
 
 
 async def execute_scheduled_scrape(urls: list, selectors: list, domain: str, broadcast_func):
-    """تابعی که در زمان‌های مشخص شده توسط کرون اجرا می‌شود"""
     task_id = f"cron-{str(uuid.uuid4())[:8]}"
-    async with httpx.AsyncClient() as client:
-        jobs = [scraper_engine.fetch_and_parse(
-            type('Task', (), {'task_id': task_id, 'url': url, 'target_domain': domain, 'css_selectors': selectors})(),
-            client
-        ) for url in urls]
+    async with httpx.AsyncClient(follow_redirects=True, verify=False) as client:
+        from schemas import ScrapingTask
+        jobs = []
+        for url in urls:
+            mock_task = ScrapingTask(task_id=task_id, url=url, target_domain=domain, css_selectors=selectors)
+            jobs.append(scraper_engine.fetch_and_parse(mock_task, client))
 
         for future in asyncio.as_completed(jobs):
             result = await future
@@ -28,6 +27,7 @@ async def execute_scheduled_scrape(urls: list, selectors: list, domain: str, bro
                     "url": result.url,
                     "status_code": result.status_code,
                     "data": result.extracted_data,
+                    "error": result.error,
                     "is_cron": True
                 })
 
@@ -38,6 +38,7 @@ def start_cron_scheduler():
 
 
 def add_scraping_cron(job_id: str, urls: list, selectors: list, domain: str, cron_expr: str, broadcast_func):
+    start_cron_scheduler()
     scheduler.add_job(
         execute_scheduled_scrape,
         CronTrigger.from_crontab(cron_expr),

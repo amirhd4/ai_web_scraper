@@ -18,44 +18,45 @@ class AsyncScraperEngine:
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
 
-    async def fetch_and_parse(self, task: ScrapingTask, client: httpx.AsyncClient) -> Optional[ScrapedDataPayload]:
+    async def fetch_and_parse(self, task: ScrapingTask, client: httpx.AsyncClient) -> ScrapedDataPayload:
         url_str = str(task.url)
 
         if storage.is_visited(url_str):
-            logger.info(f"URL already visited, skipping: {url_str}")
-            return None
+            logger.info(f"URL already visited: {url_str}")
+            return ScrapedDataPayload(url=url_str, error="این آدرس قبلاً اسکرپ شده است (Visited)")
 
         async with self.semaphore:
             try:
-                logger.info(f"Scraping: {url_str}")
-                response = await client.get(url_str, headers=self.headers, timeout=settings.DEFAULT_TIMEOUT)
+                logger.info(f"Scraping Engine testing: {url_str}")
+                # اضافه کردن قابلیت تعقیب ریدایرکت‌ها برای جلوگیری از خطای ۳۰۱ گوگل
+                response = await client.get(url_str, headers=self.headers, timeout=settings.DEFAULT_TIMEOUT,
+                                            follow_redirects=True)
 
                 storage.mark_as_visited(url_str)
-
                 soup = BeautifulSoup(response.text, 'html.parser')
 
-                title_tag = soup.title
-                title = str(title_tag.string).strip() if (title_tag and title_tag.string) else "No Title"
+                dynamic_extracted_data = {}
+                for selector in task.css_selectors:
+                    clean_selector = selector.strip()
+                    if not clean_selector:
+                        continue
 
-                h1_tags = [str(h1.get_text(strip=True)) for h1 in soup.find_all('h1')]
+                    elements = soup.select(clean_selector)
+                    dynamic_extracted_data[clean_selector] = [el.get_text(strip=True) for el in
+                                                              elements] if elements else []
 
                 payload = ScrapedDataPayload(
                     url=url_str,
                     status_code=response.status_code,
-                    extracted_data={
-                        "title": title,
-                        "h1_contents": h1_tags
-                    }
+                    extracted_data=dynamic_extracted_data
                 )
 
-                serialized_data = payload.model_dump(mode='json')
-
-                storage.save_result(task.task_id, serialized_data)
+                storage.save_result(task.task_id, payload.model_dump(mode='json'))
                 return payload
 
             except httpx.HTTPError as e:
-                logger.error(f"Network error fetching {url_str}: {str(e)}")
-                return None
+                logger.error(f"Network failure for {url_str}: {str(e)}")
+                return ScrapedDataPayload(url=url_str, error=f"خطای شبکه: {str(e)}")
             except Exception as e:
-                logger.error(f"Unexpected error parsing {url_str}: {str(e)}")
-                return None
+                logger.error(f"Engine parsing failure for {url_str}: {str(e)}")
+                return ScrapedDataPayload(url=url_str, error=f"خطای ساختاری: {str(e)}")
