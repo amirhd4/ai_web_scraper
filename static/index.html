@@ -1,80 +1,115 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <title>Enterprise Scraper Architect</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;800&family=Vazirmatn:wght@400;700&display=swap');
+        body { font-family: 'Plus Jakarta Sans', 'Vazirmatn', sans-serif; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-100 font-sans p-6">
+<body class="bg-slate-950 text-slate-100 p-6 transition-all duration-300">
     <div class="max-w-7xl mx-auto space-y-6">
 
-        <div class="flex justify-between items-center border-b border-slate-800 pb-5">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-800 pb-5 gap-4">
             <div>
-                <h1 class="text-2xl font-black text-indigo-400 tracking-wider">⚡ CRAWL MASTER PRO</h1>
-                <p class="text-slate-400 text-xs mt-1">سامانه مانیتورینگ متمرکز، سلکتورهای پویا و ارکستراسیون کرون‌جاب‌ها</p>
+                <h1 id="ui-title" class="text-2xl font-black text-indigo-400 tracking-wider">⚡ CRAWL MASTER PRO</h1>
+                <p id="ui-subtitle" class="text-slate-400 text-xs mt-1">Centralized Monitoring, Dynamic CSS Selectors & Cron Orchestration Console</p>
             </div>
-            <div id="status-badge" class="bg-slate-900 border border-slate-800 px-4 py-1.5 rounded-full text-xs text-slate-400 flex items-center gap-2">
-                <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span> Checking Connection...
+            <div class="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                <div class="flex bg-slate-900 border border-slate-800 rounded-lg p-0.5">
+                    <button onclick="switchLanguage('en')" id="btn-lang-en" class="px-3 py-1 text-xs font-bold rounded transition cursor-pointer bg-indigo-600 text-white">EN</button>
+                    <button onclick="switchLanguage('fa')" id="btn-lang-fa" class="px-3 py-1 text-xs font-bold rounded transition cursor-pointer text-slate-400 hover:text-slate-200">FA</button>
+                </div>
+                <div id="status-badge" class="bg-slate-900 border border-slate-800 px-4 py-1.5 rounded-full text-xs text-slate-400 flex items-center gap-2 shrink-0">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span> <span id="ui-conn-checking">Checking Connection...</span>
+                </div>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="space-y-6">
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
-                    <h2 class="text-sm font-bold text-emerald-400 mb-3">🚀 پرتاب اسکرپ آنی (Instant Cluster)</h2>
+                    <h2 id="ui-instant-title" class="text-sm font-bold text-emerald-400 mb-3">🚀 Instant Cluster Dispatch</h2>
                     <div class="space-y-3">
                         <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">آدرس‌های هدف (هر خط یک URL)</label>
-                            <textarea id="ins-urls" class="w-full h-24 bg-slate-950 border border-slate-800 rounded p-2 text-xs font-mono outline-none focus:border-emerald-500" placeholder="https://example.com"></textarea>
+                            <label id="ui-ins-urls-label" class="block text-[11px] text-slate-400 mb-1">Target URLs (One per line)</label>
+                            <textarea id="ins-urls" class="w-full h-24 bg-slate-950 border border-slate-800 rounded p-2 text-xs mono outline-none focus:border-emerald-500" placeholder="https://example.com"></textarea>
                         </div>
                         <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">سلکتورهای هدف (جداکننده با کاما)</label>
-                            <input id="ins-selectors" type="text" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs font-mono outline-none focus:border-emerald-500" value="title, h1, .product-price">
+                            <div class="flex justify-between items-center mb-1">
+                                <label id="ui-ins-sel-label" class="block text-[11px] text-slate-400">CSS Selectors (Comma-separated)</label>
+                                <span id="ui-quick-add" class="text-[10px] text-indigo-400">Quick Add:</span>
+                            </div>
+                            <input id="ins-selectors" type="text" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs mono outline-none focus:border-emerald-500" value="title, h1">
+                            <div class="flex flex-wrap gap-1 mt-1.5">
+                                <button onclick="appendSelector('ins-selectors', 'title')" class="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-[10px] mono text-slate-300 cursor-pointer">title</button>
+                                <button onclick="appendSelector('ins-selectors', 'h1')" class="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-[10px] mono text-slate-300 cursor-pointer">h1</button>
+                                <button onclick="appendSelector('ins-selectors', 'p')" class="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-[10px] mono text-slate-300 cursor-pointer">p</button>
+                                <button onclick="appendSelector('ins-selectors', 'a[href]')" class="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-[10px] mono text-slate-300 cursor-pointer">links</button>
+                                <button onclick="appendSelector('ins-selectors', '.product-price')" class="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-[10px] mono text-slate-300 cursor-pointer">.price</button>
+                            </div>
                         </div>
                         <div class="flex items-center gap-2 py-1">
                             <input type="checkbox" id="ins-ignore" class="w-4 h-4 accent-emerald-500 cursor-pointer">
-                            <label for="ins-ignore" class="text-xs text-slate-300 select-none cursor-pointer">اسکرپ مجدد (نادیده گرفتن تاریخچه دیتابیس)</label>
+                            <label for="ins-ignore" id="ui-ins-bypass-label" class="text-xs text-slate-300 select-none cursor-pointer">Ignore history (Force Refetch)</label>
                         </div>
-                        <button onclick="fireInstantJob()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-xs transition cursor-pointer">شروع عملیات آنی</button>
+                        <button onclick="fireInstantJob()" id="ui-btn-instant" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-xs transition cursor-pointer">Execute Cluster Pack</button>
                     </div>
                 </div>
 
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
-                    <h2 class="text-sm font-bold text-sky-400 mb-3">⏰ اتوماسیون زمان‌بندی (Cron Worker)</h2>
+                    <h2 id="ui-cron-title" class="text-sm font-bold text-sky-400 mb-3">⏰ Cron Automation Engine</h2>
                     <div class="space-y-3">
                         <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">آدرس‌های هدف (هر خط یک URL)</label>
-                            <textarea id="cron-urls" class="w-full h-24 bg-slate-950 border border-slate-800 rounded p-2 text-xs font-mono outline-none focus:border-sky-500" placeholder="https://example.com"></textarea>
+                            <label id="ui-cron-urls-label" class="block text-[11px] text-slate-400 mb-1">Target URLs (One per line)</label>
+                            <textarea id="cron-urls" class="w-full h-24 bg-slate-950 border border-slate-800 rounded p-2 text-xs mono outline-none focus:border-sky-500" placeholder="https://example.com"></textarea>
                         </div>
                         <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">سلکتورهای هدف (با کاما)</label>
-                            <input id="cron-selectors" type="text" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs font-mono outline-none focus:border-sky-500" value="title, h1">
+                            <label id="ui-cron-sel-label" class="block text-[11px] text-slate-400 mb-1">CSS Selectors (Comma-separated)</label>
+                            <input id="cron-selectors" type="text" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs mono outline-none focus:border-sky-500" value="title, h1">
+                            <div class="flex flex-wrap gap-1 mt-1.5">
+                                <button onclick="appendSelector('cron-selectors', 'title')" class="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-[10px] mono text-slate-300 cursor-pointer">title</button>
+                                <button onclick="appendSelector('cron-selectors', 'h1')" class="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-[10px] mono text-slate-300 cursor-pointer">h1</button>
+                                <button onclick="appendSelector('cron-selectors', 'a[href]')" class="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-[10px] mono text-slate-300 cursor-pointer">links</button>
+                            </div>
                         </div>
                         <div>
-                            <label class="block text-[11px] text-slate-400 mb-1">عبارت کرون (Cron Expression)</label>
-                            <input id="cron-time" type="text" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs font-mono outline-none focus:border-sky-500" value="*/1 * * * *">
+                            <div class="flex justify-between items-center mb-1">
+                                <label id="ui-cron-time-label" class="block text-[11px] text-slate-400">Cron Expression</label>
+                                <span id="ui-presets-label" class="text-[10px] text-indigo-400">Presets:</span>
+                            </div>
+                            <input id="cron-time" type="text" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs mono outline-none focus:border-sky-500" value="*/1 * * * *">
+                            <div class="flex flex-wrap gap-1 mt-1.5">
+                                <button onclick="applyCronPreset('*/1 * * * *')" class="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-[10px] text-slate-300 cursor-pointer">Every 1m</button>
+                                <button onclick="applyCronPreset('*/5 * * * *')" class="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-[10px] text-slate-300 cursor-pointer">Every 5m</button>
+                                <button onclick="applyCronPreset('0 * * * *')" class="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-[10px] text-slate-300 cursor-pointer">Hourly</button>
+                                <button onclick="applyCronPreset('0 0 * * *')" class="px-2 py-0.5 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded text-[10px] text-slate-300 cursor-pointer">Midnight</button>
+                            </div>
                         </div>
                         <div class="flex items-center gap-2 py-1">
                             <input type="checkbox" id="cron-ignore" class="w-4 h-4 accent-sky-500 cursor-pointer">
-                            <label for="cron-ignore" class="text-xs text-slate-300 select-none cursor-pointer">اسکرپ مجدد در هر تکرار دوره‌ای</label>
+                            <label for="cron-ignore" id="ui-cron-bypass-label" class="text-xs text-slate-300 select-none cursor-pointer">Force Refetch each round</label>
                         </div>
-                        <button onclick="fireCronJob()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 rounded text-xs transition cursor-pointer">برنامه‌ریزی و استقرار کرون</button>
+                        <button onclick="fireCronJob()" id="ui-btn-cron" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 rounded text-xs transition cursor-pointer">Deploy Automation Grid</button>
                     </div>
                 </div>
             </div>
 
             <div class="lg:col-span-2 space-y-6">
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
-                    <h2 class="text-sm font-bold text-slate-300 mb-3">📋 لیست جاب‌های زمان‌بندی شده فعال</h2>
+                    <h2 id="ui-registry-title" class="text-sm font-bold text-slate-300 mb-3">📋 Active Scheduled Registries</h2>
                     <div id="cron-container" class="space-y-2 max-h-40 overflow-y-auto">
-                        <p class="text-xs text-slate-600">در حال خواندن وضعیت زمان‌بندی...</p>
+                        <p id="ui-loading-cron" class="text-xs text-slate-600">Poling operational schedule registries...</p>
                     </div>
                 </div>
 
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
-                    <h2 class="text-sm font-bold text-slate-300 mb-3">📡 رصدخانه زنده شبکه (Live Websocket Feed)</h2>
-                    <div id="feed-logs" class="space-y-3 h-96 overflow-y-auto bg-slate-950 border border-slate-800 rounded-lg p-4 font-mono text-xs">
-                        <div class="text-slate-600">// سیستم آماده شنود دیتای ارسالی ورکرهاست...</div>
+                    <h2 id="ui-feed-title" class="text-sm font-bold text-slate-300 mb-3">📡 Live Network Observatory Feed</h2>
+                    <div id="feed-logs" class="space-y-3 h-105 overflow-y-auto bg-slate-950 border border-slate-800 rounded-lg p-4 mono text-xs">
+                        <div id="ui-ws-waiting" class="text-slate-600">// Standing by for live socket stream nodes...</div>
                     </div>
                 </div>
             </div>
@@ -82,41 +117,184 @@
     </div>
 
     <script>
+        // Dictionary for Complete English and Persian Support
+        const i18n = {
+            en: {
+                title: "⚡ CRAWL MASTER PRO",
+                subtitle: "Centralized Monitoring, Dynamic CSS Selectors & Cron Orchestration Console",
+                connChecking: "Checking Connection...",
+                connLive: "Live Monitoring Connected",
+                connClosed: "Disconnected",
+                instantTitle: "🚀 Instant Cluster Dispatch",
+                cronTitle: "⏰ Cron Automation Engine",
+                urlsLabel: "Target URLs (One per line)",
+                selLabel: "CSS Selectors (Comma-separated)",
+                quickAdd: "Quick Add:",
+                bypassLabelIns: "Ignore history (Force Refetch)",
+                bypassLabelCron: "Force Refetch each round",
+                btnInstant: "Execute Cluster Pack",
+                cronTimeLabel: "Cron Expression",
+                presetsLabel: "Presets:",
+                btnCron: "Deploy Automation Grid",
+                registryTitle: "📋 Active Scheduled Registries",
+                loadingCron: "Poling operational schedule registries...",
+                feedTitle: "📡 Live Network Observatory Feed",
+                wsWaiting: "// Standing by for live socket stream nodes...",
+                noCron: "No automated runtime instances assigned.",
+                selectors: "Selectors",
+                urls: "URLs",
+                modeBypass: "Mode: Always Scrape",
+                modeFilter: "Mode: Deduplication",
+                killBtn: "Kill Job",
+                alertUrls: "Please insert at least one target URL Node.",
+                alertSuccessInstant: "Instant cluster batch successfully pushed to queue nodes.",
+                alertSuccessCron: "Cron orchestration layer active.",
+                alertConfirmKill: "Terminate this background tracking engine permanently?",
+                skippedInfo: "WORKER SKIPPED",
+                successJob: "SUCCESS NODE",
+                errorLabel: "Worker Notice",
+                cronTag: "CRON",
+                instantTag: "INSTANT"
+            },
+            fa: {
+                title: "⚡ کراول ماستر پرو",
+                subtitle: "کنسول مدیریت متمرکز، سلکتورهای پویا و ارکستراسیون زمان‌بندی کرون",
+                connChecking: "در حال بررسی اتصال...",
+                connLive: "اتصال مانیتورینگ زنده برقرار است",
+                connClosed: "اتصال قطع شده است",
+                instantTitle: "🚀 پرتاب اسکرپ آنی (بچ کلاستر)",
+                cronTitle: "⏰ موتور اتوماسیون زمان‌بندی (کرون)",
+                urlsLabel: "آدرس‌های هدف (هر خط یک URL)",
+                selLabel: "سلکتورهای CSS (جداکننده با کاما)",
+                quickAdd: "افزودن سریع:",
+                bypassLabelIns: "نادیده گرفتن تاریخچه (اسکرپ اجباری مجدد)",
+                bypassLabelCron: "اسکرپ مجدد بدون فیلتر در هر دور",
+                btnInstant: "اجرای عملیات آنی کلاستر",
+                cronTimeLabel: "عبارت زمان‌بندی کرون",
+                presetsLabel: "قالب‌های آماده:",
+                btnCron: "استقرار و پیکربندی شبکه کرون",
+                registryTitle: "📋 لیست جاب‌های فعال زمان‌بندی شده",
+                loadingCron: "در حال خواندن وضعیت ثبتی زمان‌بندها...",
+                feedTitle: "📡 رصدخانه زنده شبکه (وب‌ساکت)",
+                wsWaiting: "// در حال انتظار برای دریافت سیگنال‌های زنده ورکرها...",
+                noCron: "هیچ جاب دوره‌ای در دیتابیس فعال نیست.",
+                selectors: "سلکتورها",
+                urls: "آدرس‌ها",
+                modeBypass: "حالت: اسکرپ مدام",
+                modeFilter: "حالت: فیلتر تکراری",
+                killBtn: "توقف جاب",
+                alertUrls: "لطفاً حداقل یک آدرس هدف وارد کنید.",
+                alertSuccessInstant: "تسک کلاستر آنی با موفقیت به صف ورکرها ارسال شد.",
+                alertSuccessCron: "زمان‌بند کرون با موفقیت فعال و مستقر شد.",
+                alertConfirmKill: "آیا مایل به حذف و توقف همیشگی این موتور ردیابی هستید؟",
+                skippedInfo: "گزارش ورکر (رد شده)",
+                successJob: "جاب موفقیت‌آمیز نود",
+                errorLabel: "اطلاعیه ورکر",
+                cronTag: "زمان‌بند",
+                instantTag: "آنی"
+            }
+        };
+
+        let currentLang = 'en';
+
+        function switchLanguage(lang) {
+            currentLang = lang;
+            document.documentElement.lang = lang;
+            document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+
+            // Toggle active lang buttons layout
+            if(lang === 'fa') {
+                document.getElementById('btn-lang-fa').className = "px-3 py-1 text-xs font-bold rounded transition cursor-pointer bg-indigo-600 text-white";
+                document.getElementById('btn-lang-en').className = "px-3 py-1 text-xs font-bold rounded transition cursor-pointer text-slate-400 hover:text-slate-200";
+            } else {
+                document.getElementById('btn-lang-en').className = "px-3 py-1 text-xs font-bold rounded transition cursor-pointer bg-indigo-600 text-white";
+                document.getElementById('btn-lang-fa').className = "px-3 py-1 text-xs font-bold rounded transition cursor-pointer text-slate-400 hover:text-slate-200";
+            }
+
+            // Update DOM Elements Text
+            document.getElementById('ui-title').innerText = i18n[lang].title;
+            document.getElementById('ui-subtitle').innerText = i18n[lang].subtitle;
+            document.getElementById('ui-instant-title').innerText = i18n[lang].instantTitle;
+            document.getElementById('ui-cron-title').innerText = i18n[lang].cronTitle;
+            document.getElementById('ui-ins-urls-label').innerText = i18n[lang].urlsLabel;
+            document.getElementById('ui-cron-urls-label').innerText = i18n[lang].urlsLabel;
+            document.getElementById('ui-ins-sel-label').innerText = i18n[lang].selLabel;
+            document.getElementById('ui-cron-sel-label').innerText = i18n[lang].selLabel;
+            document.getElementById('ui-quick-add').innerText = i18n[lang].quickAdd;
+            document.getElementById('ui-ins-bypass-label').innerText = i18n[lang].bypassLabelIns;
+            document.getElementById('ui-cron-bypass-label').innerText = i18n[lang].bypassLabelCron;
+            document.getElementById('ui-btn-instant').innerText = i18n[lang].btnInstant;
+            document.getElementById('ui-cron-time-label').innerText = i18n[lang].cronTimeLabel;
+            document.getElementById('ui-presets-label').innerText = i18n[lang].presetsLabel;
+            document.getElementById('ui-btn-cron').innerText = i18n[lang].btnCron;
+            document.getElementById('ui-registry-title').innerText = i18n[lang].registryTitle;
+            document.getElementById('ui-feed-title').innerText = i18n[lang].feedTitle;
+
+            // Conditional state strings updates
+            updateConnectionBadge();
+            fetchActiveCrons();
+        }
+
+        // Frontend Helpers
+        function appendSelector(inputId, selector) {
+            const input = document.getElementById(inputId);
+            let currentValues = input.value.split(',').map(s => s.trim()).filter(s => s !== "");
+            if (!currentValues.includes(selector)) {
+                currentValues.push(selector);
+                input.value = currentValues.join(', ');
+            }
+        }
+
+        function applyCronPreset(expr) {
+            document.getElementById('cron-time').value = expr;
+        }
+
+        // Connection Telemetry Pipeline
         const ws = new WebSocket(`ws://${window.location.host}/ws/monitor`);
         const badge = document.getElementById("status-badge");
         const logsBox = document.getElementById("feed-logs");
 
-        ws.onopen = () => {
-            badge.className = "bg-slate-900 border border-emerald-800 px-4 py-1.5 rounded-full text-xs text-emerald-400 flex items-center gap-2";
-            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Live Monitoring Connected`;
-        };
+        function updateConnectionBadge(state = "checking") {
+            if (ws.readyState === WebSocket.OPEN) {
+                badge.className = "bg-slate-900 border border-emerald-800 px-4 py-1.5 rounded-full text-xs text-emerald-400 flex items-center gap-2 shrink-0";
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> ${i18n[currentLang].connLive}`;
+            } else if (ws.readyState === WebSocket.CLOSED) {
+                badge.className = "bg-slate-900 border border-red-800 px-4 py-1.5 rounded-full text-xs text-red-400 flex items-center gap-2 shrink-0";
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> ${i18n[currentLang].connClosed}`;
+            } else {
+                badge.className = "bg-slate-900 border border-slate-800 px-4 py-1.5 rounded-full text-xs text-slate-400 flex items-center gap-2 shrink-0";
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span> ${i18n[currentLang].connChecking}`;
+            }
+        }
 
-        ws.onclose = () => {
-            badge.className = "bg-slate-900 border border-red-800 px-4 py-1.5 rounded-full text-xs text-red-400 flex items-center gap-2";
-            badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Disconnected`;
-        };
+        ws.onopen = () => updateConnectionBadge();
+        ws.onclose = () => updateConnectionBadge();
 
         ws.onmessage = (event) => {
+            const placeholder = document.getElementById("ui-ws-waiting");
+            if(placeholder) placeholder.remove();
+
             const res = JSON.parse(event.data);
             if (res.event === "page_scraped") {
                 const card = document.createElement("div");
+                const tagText = res.is_cron ? i18n[currentLang].cronTag : i18n[currentLang].instantTag;
 
                 if (res.error) {
                     card.className = "p-4 bg-amber-950/20 border border-amber-900/60 rounded-xl space-y-2";
                     card.innerHTML = `
                         <div class="flex justify-between items-center">
-                            <span class="text-amber-400 font-bold">⚠️ گزارش ورکر: ${res.task_id}</span>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-900 text-amber-200">${res.is_cron ? 'CRON' : 'INSTANT'}</span>
+                            <span class="text-amber-400 font-bold">${i18n[currentLang].errorLabel}: ${res.task_id}</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-900 text-amber-200">${tagText}</span>
                         </div>
-                        <div class="text-slate-300 text-xs break-all"><span class="text-amber-500 font-bold">[SKIPPED/INFO]</span> ${res.url}</div>
-                        <div class="text-amber-300 bg-amber-950/80 p-2 rounded text-[11px] border border-amber-900/30">${res.error}</div>
+                        <div class="text-slate-300 text-xs break-all"><span class="text-amber-500 font-bold">[${i18n[currentLang].skippedInfo}]</span> ${res.url}</div>
+                        <div class="text-amber-300 bg-amber-950/80 p-2 rounded text-[11px] border border-amber-900/30 font-sans">${res.error}</div>
                     `;
                 } else {
                     card.className = "p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-2 shadow-inner";
                     card.innerHTML = `
                         <div class="flex justify-between items-center">
-                            <span class="text-indigo-400 font-bold">🎯 جاب موفق: ${res.task_id}</span>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${res.is_cron ? 'bg-sky-900 text-sky-200' : 'bg-emerald-900 text-emerald-200'}">${res.is_cron ? 'CRON' : 'INSTANT'}</span>
+                            <span class="text-indigo-400 font-bold">${i18n[currentLang].successJob}: ${res.task_id}</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold ${res.is_cron ? 'bg-sky-900 text-sky-200' : 'bg-emerald-900 text-emerald-200'}">${tagText}</span>
                         </div>
                         <div class="text-slate-200 text-xs break-all"><span class="text-emerald-400 font-bold">[${res.status_code || 200}]</span> ${res.url}</div>
                         <pre class="bg-slate-950 p-2.5 rounded text-slate-400 text-[11px] overflow-x-auto border border-slate-800/60">${JSON.stringify(res.data, null, 2)}</pre>
@@ -126,18 +304,19 @@
             }
         };
 
+        // Core API Event Despatchers
         async function fireInstantJob() {
             const urls = document.getElementById("ins-urls").value.split("\n").filter(u => u.trim() !== "");
             const selectors = document.getElementById("ins-selectors").value.split(",").filter(s => s.trim() !== "");
             const ignore_visited = document.getElementById("ins-ignore").checked;
-            if(!urls.length) return alert("لطفاً حداقل یک آدرس وارد کنید.");
+            if(!urls.length) return alert(i18n[currentLang].alertUrls);
 
             const response = await fetch('/api/v1/scrape/batch', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ urls, selectors, domain: "instant-runtime", ignore_visited })
             });
-            if(response.ok) alert("تسک آنی به صف ورکرها ارسال شد.");
+            if(response.ok) alert(i18n[currentLang].alertSuccessInstant);
         }
 
         async function fireCronJob() {
@@ -145,7 +324,7 @@
             const selectors = document.getElementById("cron-selectors").value.split(",").filter(s => s.trim() !== "");
             const cron_expression = document.getElementById("cron-time").value;
             const ignore_visited = document.getElementById("cron-ignore").checked;
-            if(!urls.length || !cron_expression) return alert("اطلاعات فرم ناقص است.");
+            if(!urls.length || !cron_expression) return alert(i18n[currentLang].alertUrls);
 
             const response = await fetch('/api/v1/cron', {
                 method: 'POST',
@@ -153,10 +332,8 @@
                 body: JSON.stringify({ urls, selectors, domain: "cron-runtime", cron_expression, ignore_visited })
             });
             if(response.ok) {
-                alert("کرون‌جاب با موفقیت فعال و مستقر شد.");
+                alert(i18n[currentLang].alertSuccessCron);
                 fetchActiveCrons();
-            } else {
-                alert("خطا در قالب فرمت کرون جاب.");
             }
         }
 
@@ -167,34 +344,36 @@
             box.innerHTML = "";
 
             if(Object.keys(jobs).length === 0) {
-                box.innerHTML = `<p class="text-xs text-slate-600">هیچ جاب دوره‌ای در دیتابیس فعال نیست.</p>`;
+                box.innerHTML = `<p class="text-xs text-slate-600">${i18n[currentLang].noCron}</p>`;
                 return;
             }
 
             for (const [id, job] of Object.entries(jobs)) {
                 const item = document.createElement("div");
-                item.className = "flex justify-between items-center bg-slate-950 p-3 border border-slate-800 rounded-lg text-xs";
+                item.className = "flex justify-between items-center bg-slate-950 p-3 border border-slate-800 rounded-lg text-xs gap-4";
+                const modeText = job.ignore_visited ? i18n[currentLang].modeBypass : i18n[currentLang].modeFilter;
                 item.innerHTML = `
                     <div class="truncate max-w-[80%]">
-                        <span class="text-sky-400 font-bold font-mono">${id}</span>
-                        <span class="text-slate-500 ml-2 font-mono bg-slate-900 px-2 py-0.5 border border-slate-800 rounded">${job.cron}</span>
-                        <span class="text-[10px] text-slate-400 px-1.5 ml-1 rounded bg-slate-900 border border-slate-800">${job.ignore_visited ? 'حالت: اسکرپ مدام' : 'حالت: فیلتر تکراری'}</span>
-                        <div class="text-[10px] text-slate-400 mt-1 truncate">سلکتورها: ${job.selectors.join(', ')} | آدرس‌ها: ${job.urls.join(', ')}</div>
+                        <span class="text-sky-400 font-bold mono">${id}</span>
+                        <span class="text-slate-500 mx-2 mono bg-slate-900 px-2 py-0.5 border border-slate-800 rounded">${job.cron}</span>
+                        <span class="text-[10px] text-slate-400 px-1.5 rounded bg-slate-900 border border-slate-800 inline-block mt-1 sm:mt-0">${modeText}</span>
+                        <div class="text-[10px] text-slate-400 mt-1 truncate">${i18n[currentLang].selectors}: ${job.selectors.join(', ')} | ${i18n[currentLang].urls}: ${job.urls.join(', ')}</div>
                     </div>
-                    <button onclick="killCron('${id}')" class="text-red-400 hover:text-red-500 font-bold px-2 py-1 transition cursor-pointer">توقف جاب</button>
+                    <button onclick="killCron('${id}')" class="text-red-400 hover:text-red-500 font-bold px-2 py-1 transition cursor-pointer shrink-0">${i18n[currentLang].killBtn}</button>
                 `;
                 box.appendChild(item);
             }
         }
 
         async function killCron(id) {
-            if(confirm("آیا مایل به حذف و توقف این کرون‌جاب هستید؟")) {
+            if(confirm(i18n[currentLang].alertConfirmKill)) {
                 await fetch(`/api/v1/cron/${id}`, { method: 'DELETE' });
-                await fetchActiveCrons();
+                fetchActiveCrons();
             }
         }
 
-        fetchActiveCrons();
+        // Initialize view states
+        switchLanguage('en');
     </script>
 </body>
 </html>
