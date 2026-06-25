@@ -9,15 +9,20 @@ scheduler = AsyncIOScheduler()
 scraper_engine = AsyncScraperEngine()
 
 
-async def execute_scheduled_scrape(urls: list, selectors: list, domain: str, ignore_visited: bool, broadcast_func):
+async def execute_scheduled_scrape(urls: list, mode: str, selectors: list, ai_prompt: str, domain: str, ignore_visited: bool, broadcast_func):
     task_id = f"cron-{str(uuid.uuid4())[:8]}"
     async with httpx.AsyncClient(follow_redirects=True, verify=False) as client:
         from schemas import ScrapingTask
         jobs = []
         for url in urls:
             mock_task = ScrapingTask(
-                task_id=task_id, url=url, target_domain=domain,
-                css_selectors=selectors, ignore_visited=ignore_visited
+                task_id=task_id,
+                url=url,
+                target_domain=domain,
+                extraction_mode=mode,
+                css_selectors=selectors,
+                ai_prompt=ai_prompt,
+                ignore_visited=ignore_visited
             )
             jobs.append(scraper_engine.fetch_and_parse(mock_task, client))
 
@@ -40,14 +45,14 @@ def start_cron_scheduler():
         scheduler.start()
 
 
-def add_scraping_cron(job_id: str, urls: list, selectors: list, domain: str, cron_expr: str, ignore_visited: bool,
+def add_scraping_cron(job_id: str, urls: list, mode: str, selectors: list, ai_prompt: str, domain: str, cron_expr: str, ignore_visited: bool,
                       broadcast_func):
     start_cron_scheduler()
     scheduler.add_job(
         execute_scheduled_scrape,
         CronTrigger.from_crontab(cron_expr),
         id=job_id,
-        args=[urls, selectors, domain, ignore_visited, broadcast_func],
+        args=[urls, mode, selectors, ai_prompt, domain, ignore_visited, broadcast_func],
         replace_existing=True
     )
 

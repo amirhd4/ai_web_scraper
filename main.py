@@ -44,11 +44,14 @@ manager = ConnectionManager()
 scraper_engine = AsyncScraperEngine()
 
 
-async def run_cluster_scraping(task_id: str, urls: list[str], selectors: list[str], domain: str, ignore_visited: bool):
+async def run_cluster_scraping(task_id: str, urls: list[str], mode: str, selectors: list[str], ai_prompt: str, domain: str, ignore_visited: bool):
     async with httpx.AsyncClient(follow_redirects=True, verify=False) as client:
         jobs = [scraper_engine.fetch_and_parse(
-            ScrapingTask(task_id=task_id, url=url, target_domain=domain, css_selectors=selectors,
-                         ignore_visited=ignore_visited), client
+            ScrapingTask(
+                task_id=task_id, url=url, target_domain=domain,
+                extraction_mode=mode, css_selectors=selectors, ai_prompt=ai_prompt,
+                ignore_visited=ignore_visited
+            ), client
         ) for url in urls]
         for future in asyncio.as_completed(jobs):
             result = await future
@@ -59,28 +62,29 @@ async def run_cluster_scraping(task_id: str, urls: list[str], selectors: list[st
                     "error": result.error, "is_cron": False
                 })
 
-
 @app.post("/api/v1/scrape/batch")
 async def start_batch_scrape(payload: InstantJobCreate, background_tasks: BackgroundTasks):
     task_id = str(uuid.uuid4())[:8]
     urls_str = [str(u) for u in payload.urls]
-    background_tasks.add_task(run_cluster_scraping, task_id, urls_str, payload.selectors, payload.domain,
-                              payload.ignore_visited)
+    background_tasks.add_task(
+        run_cluster_scraping, task_id, urls_str, payload.extraction_mode,
+        payload.css_selectors, payload.ai_prompt, payload.domain, payload.ignore_visited
+    )
     return {"status": "queued", "task_id": task_id}
-
 
 @app.post("/api/v1/cron")
 async def create_cron_task(payload: CronJobCreate):
     job_id = f"cron-job-{str(uuid.uuid4())[:6]}"
     urls_str = [str(u) for u in payload.urls]
+    # افزودن به اسکژولر زمان‌بندی با معماری جدید
     try:
-        add_scraping_cron(job_id, urls_str, payload.selectors, payload.domain, payload.cron_expression,
-                          payload.ignore_visited, manager.broadcast)
+        add_scraping_cron(job_id, urls_str, payload.extraction_mode, payload.css_selectors, payload.ai_prompt, payload.domain, payload.cron_expression, payload.ignore_visited, manager.broadcast)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid Cron Expression: {str(e)}")
 
     storage.save_cron_job(job_id, {
-        "job_id": job_id, "urls": urls_str, "selectors": payload.selectors,
+        "job_id": job_id, "urls": urls_str, "extraction_mode": payload.extraction_mode,
+        "selectors": payload.css_selectors, "ai_prompt": payload.ai_prompt,
         "domain": payload.domain, "cron": payload.cron_expression, "ignore_visited": payload.ignore_visited
     })
     return {"status": "cron_scheduled", "job_id": job_id}
