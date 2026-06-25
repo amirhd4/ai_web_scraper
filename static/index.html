@@ -190,7 +190,7 @@
         async function killCron(id) {
             if(confirm("آیا مایل به حذف و توقف این کرون‌جاب هستید؟")) {
                 await fetch(`/api/v1/cron/${id}`, { method: 'DELETE' });
-                fetchActiveCrons();
+                await fetchActiveCrons();
             }
         }
 
