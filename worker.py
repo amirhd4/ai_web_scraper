@@ -43,7 +43,7 @@ class AsyncScraperEngine:
         try:
             def call_gemini():
                 return self.ai_client.models.generate_content(
-                    model="gemini-3.5-flash",
+                    model="gemini-3.1-flash-lite",
                     contents=f"User Request: {user_prompt}\n\nWeb Page Content:\n{page_text}",
                     config=config
                 )
