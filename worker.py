@@ -21,14 +21,18 @@ class AsyncScraperEngine:
     async def fetch_and_parse(self, task: ScrapingTask, client: httpx.AsyncClient) -> ScrapedDataPayload:
         url_str = str(task.url)
 
-        if storage.is_visited(url_str):
-            logger.info(f"URL already visited: {url_str}")
-            return ScrapedDataPayload(url=url_str, error="این آدرس قبلاً اسکرپ شده است (Visited)")
+        if not task.ignore_visited and storage.is_visited(url_str):
+            logger.info(f"URL already visited, skipping asset: {url_str}")
+            return ScrapedDataPayload(
+                url=url_str,
+                status_code=None,
+                extracted_data={},
+                error="این آدرس قبلاً دیده شده است. برای بروزرسانی، گزینه 'اسکرپ مجدد دیتای تکراری' را فعال کنید."
+            )
 
         async with self.semaphore:
             try:
                 logger.info(f"Scraping Engine testing: {url_str}")
-                # اضافه کردن قابلیت تعقیب ریدایرکت‌ها برای جلوگیری از خطای ۳۰۱ گوگل
                 response = await client.get(url_str, headers=self.headers, timeout=settings.DEFAULT_TIMEOUT,
                                             follow_redirects=True)
 
@@ -40,7 +44,6 @@ class AsyncScraperEngine:
                     clean_selector = selector.strip()
                     if not clean_selector:
                         continue
-
                     elements = soup.select(clean_selector)
                     dynamic_extracted_data[clean_selector] = [el.get_text(strip=True) for el in
                                                               elements] if elements else []
@@ -56,7 +59,9 @@ class AsyncScraperEngine:
 
             except httpx.HTTPError as e:
                 logger.error(f"Network failure for {url_str}: {str(e)}")
-                return ScrapedDataPayload(url=url_str, error=f"خطای شبکه: {str(e)}")
+                return ScrapedDataPayload(url=url_str, status_code=None, extracted_data={},
+                                          error=f"خطای شبکه: {str(e)}")
             except Exception as e:
                 logger.error(f"Engine parsing failure for {url_str}: {str(e)}")
-                return ScrapedDataPayload(url=url_str, error=f"خطای ساختاری: {str(e)}")
+                return ScrapedDataPayload(url=url_str, status_code=None, extracted_data={},
+                                          error=f"خطای ساختاری: {str(e)}")

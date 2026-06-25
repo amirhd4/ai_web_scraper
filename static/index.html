@@ -11,7 +11,7 @@
         <div class="flex justify-between items-center border-b border-slate-800 pb-5">
             <div>
                 <h1 class="text-2xl font-black text-indigo-400 tracking-wider">⚡ CRAWL MASTER PRO</h1>
-                <p class="text-slate-400 text-xs mt-1">مدیریت مانیتورینگ متمرکز، سلکتورهای پویا و ارکستراسیون کرون‌جاب‌ها</p>
+                <p class="text-slate-400 text-xs mt-1">سامانه مانیتورینگ متمرکز، سلکتورهای پویا و ارکستراسیون کرون‌جاب‌ها</p>
             </div>
             <div id="status-badge" class="bg-slate-900 border border-slate-800 px-4 py-1.5 rounded-full text-xs text-slate-400 flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span> Checking Connection...
@@ -31,6 +31,10 @@
                             <label class="block text-[11px] text-slate-400 mb-1">سلکتورهای هدف (جداکننده با کاما)</label>
                             <input id="ins-selectors" type="text" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs font-mono outline-none focus:border-emerald-500" value="title, h1, .product-price">
                         </div>
+                        <div class="flex items-center gap-2 py-1">
+                            <input type="checkbox" id="ins-ignore" class="w-4 h-4 accent-emerald-500 cursor-pointer">
+                            <label for="ins-ignore" class="text-xs text-slate-300 select-none cursor-pointer">اسکرپ مجدد (نادیده گرفتن تاریخچه دیتابیس)</label>
+                        </div>
                         <button onclick="fireInstantJob()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-xs transition cursor-pointer">شروع عملیات آنی</button>
                     </div>
                 </div>
@@ -49,7 +53,10 @@
                         <div>
                             <label class="block text-[11px] text-slate-400 mb-1">عبارت کرون (Cron Expression)</label>
                             <input id="cron-time" type="text" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-xs font-mono outline-none focus:border-sky-500" value="*/1 * * * *">
-                            <span class="text-[10px] text-slate-500 mt-1 block">مقدار `*/1 * * * *` یعنی اجرای اتوماتیک سرِ هر دقیقه</span>
+                        </div>
+                        <div class="flex items-center gap-2 py-1">
+                            <input type="checkbox" id="cron-ignore" class="w-4 h-4 accent-sky-500 cursor-pointer">
+                            <label for="cron-ignore" class="text-xs text-slate-300 select-none cursor-pointer">اسکرپ مجدد در هر تکرار دوره‌ای</label>
                         </div>
                         <button onclick="fireCronJob()" class="w-full bg-sky-600 hover:bg-sky-500 text-white font-bold py-2 rounded text-xs transition cursor-pointer">برنامه‌ریزی و استقرار کرون</button>
                     </div>
@@ -60,7 +67,7 @@
                 <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
                     <h2 class="text-sm font-bold text-slate-300 mb-3">📋 لیست جاب‌های زمان‌بندی شده فعال</h2>
                     <div id="cron-container" class="space-y-2 max-h-40 overflow-y-auto">
-                        <p class="text-xs text-slate-600">در حال خواندن وضعیت دیتابیس زمان‌بندی...</p>
+                        <p class="text-xs text-slate-600">در حال خواندن وضعیت زمان‌بندی...</p>
                     </div>
                 </div>
 
@@ -75,7 +82,6 @@
     </div>
 
     <script>
-        // مدیریت وب ساکت با هندلینگ تغییر دامنه‌ها
         const ws = new WebSocket(`ws://${window.location.host}/ws/monitor`);
         const badge = document.getElementById("status-badge");
         const logsBox = document.getElementById("feed-logs");
@@ -95,16 +101,15 @@
             if (res.event === "page_scraped") {
                 const card = document.createElement("div");
 
-                // مدیریت گرافیکی نمایش ارورها یا موفقیت اسکرپ
                 if (res.error) {
-                    card.className = "p-4 bg-red-950/40 border border-red-900/60 rounded-xl space-y-2";
+                    card.className = "p-4 bg-amber-950/20 border border-amber-900/60 rounded-xl space-y-2";
                     card.innerHTML = `
                         <div class="flex justify-between items-center">
-                            <span class="text-red-400 font-bold">❌ خطا در جاب: ${res.task_id}</span>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-900 text-red-200">${res.is_cron ? 'CRON' : 'INSTANT'}</span>
+                            <span class="text-amber-400 font-bold">⚠️ گزارش ورکر: ${res.task_id}</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-900 text-amber-200">${res.is_cron ? 'CRON' : 'INSTANT'}</span>
                         </div>
-                        <div class="text-slate-300 text-xs break-all"><span class="text-red-500 font-bold">[FAILED]</span> ${res.url}</div>
-                        <div class="text-red-300 bg-red-950/80 p-2 rounded text-[11px] border border-red-900/30">${res.error}</div>
+                        <div class="text-slate-300 text-xs break-all"><span class="text-amber-500 font-bold">[SKIPPED/INFO]</span> ${res.url}</div>
+                        <div class="text-amber-300 bg-amber-950/80 p-2 rounded text-[11px] border border-amber-900/30">${res.error}</div>
                     `;
                 } else {
                     card.className = "p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-2 shadow-inner";
@@ -113,7 +118,7 @@
                             <span class="text-indigo-400 font-bold">🎯 جاب موفق: ${res.task_id}</span>
                             <span class="px-2 py-0.5 rounded text-[10px] font-bold ${res.is_cron ? 'bg-sky-900 text-sky-200' : 'bg-emerald-900 text-emerald-200'}">${res.is_cron ? 'CRON' : 'INSTANT'}</span>
                         </div>
-                        <div class="text-slate-200 text-xs break-all"><span class="text-emerald-400 font-bold">[${res.status_code}]</span> ${res.url}</div>
+                        <div class="text-slate-200 text-xs break-all"><span class="text-emerald-400 font-bold">[${res.status_code || 200}]</span> ${res.url}</div>
                         <pre class="bg-slate-950 p-2.5 rounded text-slate-400 text-[11px] overflow-x-auto border border-slate-800/60">${JSON.stringify(res.data, null, 2)}</pre>
                     `;
                 }
@@ -124,12 +129,13 @@
         async function fireInstantJob() {
             const urls = document.getElementById("ins-urls").value.split("\n").filter(u => u.trim() !== "");
             const selectors = document.getElementById("ins-selectors").value.split(",").filter(s => s.trim() !== "");
+            const ignore_visited = document.getElementById("ins-ignore").checked;
             if(!urls.length) return alert("لطفاً حداقل یک آدرس وارد کنید.");
 
             const response = await fetch('/api/v1/scrape/batch', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ urls, selectors, domain: "instant-runtime" })
+                body: JSON.stringify({ urls, selectors, domain: "instant-runtime", ignore_visited })
             });
             if(response.ok) alert("تسک آنی به صف ورکرها ارسال شد.");
         }
@@ -138,12 +144,13 @@
             const urls = document.getElementById("cron-urls").value.split("\n").filter(u => u.trim() !== "");
             const selectors = document.getElementById("cron-selectors").value.split(",").filter(s => s.trim() !== "");
             const cron_expression = document.getElementById("cron-time").value;
+            const ignore_visited = document.getElementById("cron-ignore").checked;
             if(!urls.length || !cron_expression) return alert("اطلاعات فرم ناقص است.");
 
             const response = await fetch('/api/v1/cron', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ urls, selectors, domain: "cron-runtime", cron_expression })
+                body: JSON.stringify({ urls, selectors, domain: "cron-runtime", cron_expression, ignore_visited })
             });
             if(response.ok) {
                 alert("کرون‌جاب با موفقیت فعال و مستقر شد.");
@@ -166,11 +173,12 @@
 
             for (const [id, job] of Object.entries(jobs)) {
                 const item = document.createElement("div");
-                item.className = "flex justify-between items-center bg-slate-950 p-3 border border-slate-800 rounded-lg text-xs animate-fade-in";
+                item.className = "flex justify-between items-center bg-slate-950 p-3 border border-slate-800 rounded-lg text-xs";
                 item.innerHTML = `
                     <div class="truncate max-w-[80%]">
                         <span class="text-sky-400 font-bold font-mono">${id}</span>
                         <span class="text-slate-500 ml-2 font-mono bg-slate-900 px-2 py-0.5 border border-slate-800 rounded">${job.cron}</span>
+                        <span class="text-[10px] text-slate-400 px-1.5 ml-1 rounded bg-slate-900 border border-slate-800">${job.ignore_visited ? 'حالت: اسکرپ مدام' : 'حالت: فیلتر تکراری'}</span>
                         <div class="text-[10px] text-slate-400 mt-1 truncate">سلکتورها: ${job.selectors.join(', ')} | آدرس‌ها: ${job.urls.join(', ')}</div>
                     </div>
                     <button onclick="killCron('${id}')" class="text-red-400 hover:text-red-500 font-bold px-2 py-1 transition cursor-pointer">توقف جاب</button>
@@ -186,7 +194,6 @@
             }
         }
 
-        // بارگذاری دیتای اولیه
         fetchActiveCrons();
     </script>
 </body>
