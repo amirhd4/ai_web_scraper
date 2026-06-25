@@ -17,7 +17,7 @@ class ScrapedDataPayload(BaseModel):
     status_code: int
     title: Optional[str] = None
     extracted_data: Dict[str, Any]
-    scraped_at: datetime = Field(default_factory=datetime.utcnow)
+    scraped_at: datetime = Field(default_factory=datetime.now)
 
 
 class InstantJobCreate(BaseModel):

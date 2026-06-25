@@ -20,7 +20,6 @@ class RedisManager:
         results = self.client.lrange(f"results:{task_id}", 0, -1)
         return [json.loads(r) for r in results]
 
-    # ارتقا: مدیریت کارهای زمان‌بندی شده
     def save_cron_job(self, job_id: str, job_data: dict):
         self.client.hset("active_cron_jobs", job_id, json.dumps(job_data))
 

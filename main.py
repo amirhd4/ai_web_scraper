@@ -1,10 +1,12 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, BackgroundTasks, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 import uuid
 import httpx
 import asyncio
-from schemas import ScrapingTask, CronJobCreate
+from schemas import ScrapingTask, CronJobCreate, InstantJobCreate
 from worker import AsyncScraperEngine
 from storage import storage
 from scheduler import start_cron_scheduler, add_scraping_cron, remove_scraping_cron
@@ -13,10 +15,12 @@ import json
 app = FastAPI(title="Enterprise UI & Scheduled Scraper")
 
 
-# استارت زمان‌بند در هنگام بالا آمدن اپلیکیشن
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     start_cron_scheduler()
+    yield
+
+    pass
 
 
 class ConnectionManager:
@@ -57,10 +61,17 @@ async def run_cluster_scraping(task_id: str, urls: list[str], selectors: list[st
 
 
 @app.post("/api/v1/scrape/batch")
-async def start_batch_scrape(urls: list[str], selectors: list[str], domain: str, background_tasks: BackgroundTasks):
+async def start_batch_scrape(payload: InstantJobCreate, background_tasks: BackgroundTasks):
     task_id = str(uuid.uuid4())[:8]
-    background_tasks.add_task(run_cluster_scraping, task_id, urls, selectors, domain)
-    return {"status": "queued", "task_id": task_id}
+    urls_str = [str(u) for u in payload.urls]
+
+    background_tasks.add_task(run_cluster_scraping, task_id, urls_str, payload.selectors, payload.domain)
+
+    return {
+        "status": "queued",
+        "task_id": task_id,
+        "message": "Scraping cluster initialized successfully."
+    }
 
 
 # APIهای جدید برای مدیریت کرون‌جاب‌ها
@@ -112,3 +123,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/")
 async def root_redirect():
     return RedirectResponse(url="/static/index.html")
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
